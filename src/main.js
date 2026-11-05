@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import './styles.css';
-import { STATUS, AGENTS } from './data/agents.js';
-import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/boards.js';
+import { STATUS, AGENTS as DEMO_AGENTS } from './data/agents.js';
+import { DAYS, COLS as DEMO_COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/boards.js';
+import { connect, fetchAll, signIn, signOut, decide, setPaused } from './lib/hq.js';
+import { POLL_MS } from './lib/config.js';
+import { liveAgents, syncAgents, liveTasks, liveGoals, LIVE_COLS, KIND_LABEL, ago, shortDate, weekRuns, weekDecided, thisWeek } from './lib/live.js';
 
-(function () {
+// The office opens on the live team for a signed-in owner, otherwise on the demo.
+function startScene(hq) {
   'use strict';
   const loadingEl = document.getElementById('loading');
   const T = THREE;
@@ -11,6 +15,10 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
   const FY = 0.2;                       // floor top
   const SEAT = 1.6;                     // seat top (absolute)
   const PI = Math.PI;
+  const live = hq.mode === 'live';
+  let data = hq.data || null;
+  const AGENTS = live ? liveAgents(data) : DEMO_AGENTS;
+  const COLS = live ? LIVE_COLS : DEMO_COLS;
 
 
   // ---------------------------------------------------------------- renderer
@@ -701,6 +709,7 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
   maraT.walk0 = maraT.drive0 + maraT.drive + 1.0; maraT.walk = maraWalk.len / WALK;
   const leoCar = makeCar('#0d69ac');
   const maraCar = makeCar('#e8bac8');
+  if (live) { leoCar.visible = false; maraCar.visible = false; }
 
   // ---------------------------------------------------------------- people
   const people = AGENTS.map((a, i) => {
@@ -767,14 +776,17 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
   try { const q = localStorage.getItem('hq3d-quality'); if (q === 'sharp' || q === 'fast') state.quality = q; } catch (e) { /* storage unavailable */ }
 
   function counts() {
-    const c = { working: 0, break: 0, lunch: 0, idle: 0, commute: 0 };
-    AGENTS.forEach((a) => { c[a.status]++; });
+    const c = {};
+    Object.keys(STATUS).forEach((k) => { c[k] = 0; });
+    AGENTS.forEach((a) => { if (c[a.status] !== undefined) c[a.status]++; });
     return c;
   }
+  // statuses worth showing: the ones someone is in right now
+  function shownStatuses() { const c = counts(), k = Object.keys(STATUS).filter((s) => c[s] > 0); return k.length ? k : Object.keys(STATUS); }
   const chipsEl = document.getElementById('chips');
   function renderChips() {
     const c = counts();
-    const defs = [['all', 'All', AGENTS.length, null]].concat(Object.keys(STATUS).map((k) => [k, STATUS[k].label, c[k], STATUS[k].color]));
+    const defs = [['all', 'All', AGENTS.length, null]].concat(shownStatuses().map((k) => [k, STATUS[k].label, c[k], STATUS[k].color]));
     chipsEl.innerHTML = '';
     defs.forEach((d) => {
       const b = document.createElement('button');
@@ -787,8 +799,14 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
     });
     const bar = document.getElementById('bar'); bar.innerHTML = '';
     Object.keys(STATUS).forEach((k) => { const i = document.createElement('i'); i.style.width = (c[k] / AGENTS.length * 100) + '%'; i.style.background = STATUS[k].color; bar.appendChild(i); });
-    document.getElementById('utiltext').textContent = Math.round(c.working / AGENTS.length * 100) + '% working · ' + c.break + ' on break';
-    document.getElementById('floorline').textContent = 'Digital workspace · ' + AGENTS.length + ' agents on Floor 1';
+    if (live) {
+      const w = data.drafts.filter((d) => d.status === 'awaiting_approval').length;
+      document.getElementById('utiltext').textContent = c.working + ' of ' + AGENTS.length + ' working · ' + w + (w === 1 ? ' draft' : ' drafts') + ' waiting for you';
+      document.getElementById('floorline').textContent = 'Little Faith Club team · ' + AGENTS.length + ' AI employees';
+    } else {
+      document.getElementById('utiltext').textContent = Math.round(c.working / AGENTS.length * 100) + '% working · ' + c.break + ' on break';
+      document.getElementById('floorline').textContent = 'Digital workspace · ' + AGENTS.length + ' agents on Floor 1';
+    }
   }
   function applyFilter() {
     people.forEach((p) => {
@@ -801,10 +819,16 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
     const a = AGENTS[state.selected], st = STATUS[a.status];
     document.getElementById('c-name').textContent = a.name;
     document.getElementById('c-role').textContent = a.role;
-    const pill = document.getElementById('c-pill'); pill.textContent = st.label; pill.style.background = st.color;
+    const pill = document.getElementById('c-pill'); pill.textContent = st.label; pill.style.background = st.color; pill.style.color = a.status === 'paused' ? '#ffffff' : '';
     document.getElementById('c-task').textContent = a.task;
-    const open = tasks.filter((x) => x.agent === a.id && x.status !== 'done').length;
-    document.getElementById('c-meta').textContent = a.desk + ' · ' + a.zone + ' · ' + a.since + ' in status · ' + open + (open === 1 ? ' open task' : ' open tasks');
+    if (live) {
+      document.getElementById('c-meta').textContent = a.desk + ' · ' + a.zone + ' · updated ' + a.since + ' ago · ' + (a.waiting ? a.waiting + ' waiting for you' : 'nothing waiting for you');
+      document.getElementById('msg').textContent = a.paused ? 'Resume' : 'Pause';
+      document.getElementById('assign').textContent = 'Their work';
+    } else {
+      const open = tasks.filter((x) => x.agent === a.id && x.status !== 'done').length;
+      document.getElementById('c-meta').textContent = a.desk + ' · ' + a.zone + ' · ' + a.since + ' in status · ' + open + (open === 1 ? ' open task' : ' open tasks');
+    }
     const pr = document.getElementById('portrait').style;
     pr.setProperty('--shirt', a.shirt); pr.setProperty('--skin', a.skin); pr.setProperty('--hair', a.hair);
     pr.boxShadow = 'inset 0 0 0 3px ' + st.color;
@@ -817,17 +841,24 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
   followBtn.addEventListener('click', () => setFollow(!state.follow));
   const toastEl = document.getElementById('toast'); let toastT = 0;
   function toast(msg) { toastEl.textContent = msg; toastEl.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { toastEl.hidden = true; }, 2400); }
-  document.getElementById('msg').addEventListener('click', () => toast('Messaging ' + AGENTS[state.selected].name + ' is not connected in this prototype'));
-  document.getElementById('assign').addEventListener('click', () => openDrawer('tasks', { form: true, agent: AGENTS[state.selected].id }));
+  document.getElementById('msg').addEventListener('click', () => {
+    if (live) togglePause(AGENTS[state.selected].id);
+    else toast('Messaging ' + AGENTS[state.selected].name + ' is not connected in the demo');
+  });
+  document.getElementById('assign').addEventListener('click', () => {
+    if (live) openDrawer('assigned');
+    else openDrawer('tasks', { form: true, agent: AGENTS[state.selected].id });
+  });
 
   // ---------------------------------------------------------------- boards: tasks, assignments, weekly goals (seed data in src/data/boards.js, edits saved in this browser)
   function load(key, def) {
     try { const v = JSON.parse(localStorage.getItem(key)); if (Array.isArray(v) && v.length) return v; } catch (e) { /* storage unavailable */ }
     return JSON.parse(JSON.stringify(def));
   }
-  let tasks = load('hq3d-tasks-v1', SEED_TASKS);
-  let goals = load('hq3d-goals-v1', SEED_GOALS);
+  let tasks = live ? liveTasks(data.drafts) : load('hq3d-tasks-v1', SEED_TASKS);
+  let goals = live ? liveGoals(data.drafts) : load('hq3d-goals-v1', SEED_GOALS);
   function save() {
+    if (live) return;
     try { localStorage.setItem('hq3d-tasks-v1', JSON.stringify(tasks)); localStorage.setItem('hq3d-goals-v1', JSON.stringify(goals)); } catch (e) { /* storage unavailable */ }
   }
   const byId = (id) => AGENTS.find((a) => a.id === id) || { name: 'Unassigned', shirt: '#888888', id: '' };
@@ -879,7 +910,7 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
         c.fillStyle = a.shirt; c.fillRect(x + 4, y + 4, 17, 17);
         c.fillStyle = '#1b2433'; c.font = '600 16px Fredoka, sans-serif'; c.fillText(a.name, x + 28, y + 18);
         for (let k = 0; k < Math.min(open, 6); k++) { c.fillStyle = '#3d8bff'; c.fillRect(x + 120 + k * 18, y + 6, 13, 13); }
-        if (!open) { c.fillStyle = '#c4281c'; c.font = '700 15px Fredoka, sans-serif'; c.fillText('needs a task', x + 120, y + 18); }
+        if (!open) { c.fillStyle = live ? '#2b8a3e' : '#c4281c'; c.font = '700 15px Fredoka, sans-serif'; c.fillText(live ? 'all clear' : 'needs a task', x + 120, y + 18); }
       });
     });
     paint(boardTex.goals, (c, w, h) => {
@@ -898,7 +929,7 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
       c.fillStyle = '#10141c'; c.fillRect(0, 0, w, h);
       c.fillStyle = '#ffd23f'; c.fillRect(18, 16, 8, 32);
       c.fillStyle = '#ffffff'; c.font = '800 28px Fredoka, sans-serif'; c.fillText('REPORTS', 36, 42);
-      Object.keys(STATUS).forEach((k, i) => {
+      shownStatuses().slice(0, 5).forEach((k, i) => {
         const y = 66 + i * 38, bw = (n[k] / AGENTS.length) * 300;
         c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(18, y, 300, 24);
         c.fillStyle = STATUS[k].color; c.fillRect(18, y, Math.max(6, bw), 24);
@@ -925,8 +956,10 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
 
   function viewTasks() {
     const open = tasks.filter((t) => t.status !== 'done').length, done = tasks.length - open;
-    let html = '<div class="row"><div class="grow"><h2 class="dr-title">Task board</h2><div class="muted">' + open + ' open · ' + done + ' done this week · use the arrows on a card to move it</div></div>' +
-      '<button class="btn primary sm" id="new-task" type="button">New task</button></div>';
+    let html = live
+      ? '<div class="row"><div class="grow"><h2 class="dr-title">Task board</h2><div class="muted">' + open + ' in progress · ' + done + ' approved · every draft the team is working on</div></div></div>'
+      : '<div class="row"><div class="grow"><h2 class="dr-title">Task board</h2><div class="muted">' + open + ' open · ' + done + ' done this week · use the arrows on a card to move it</div></div>' +
+        '<button class="btn primary sm" id="new-task" type="button">New task</button></div>';
     if (formOpen) {
       html += '<form class="form" id="task-form">' +
         '<label class="wide" for="f-title">Task<input id="f-title" required maxlength="80" placeholder="What needs doing?" autocomplete="off"></label>' +
@@ -943,9 +976,10 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
           const a = byId(t.agent);
           return '<article class="tcard"><b>' + esc(t.title) + '</b><div class="tmeta">' +
             '<button class="who-chip" type="button" data-agent="' + a.id + '" title="Show ' + esc(a.name) + ' in the office"><i style="background:' + a.shirt + '"></i>' + esc(a.name) + '</button>' +
+            (live ? '<span class="kind">' + KIND_LABEL[t.kind] + '</span>' + (t.due !== '—' ? '<span>For ' + t.due + '</span>' : '') :
             '<span class="prio ' + t.prio + '">' + t.prio + '</span><span>Due ' + t.due + '</span>' +
             '<span class="moves"><button class="mv-btn" type="button" data-move="' + t.id + '" data-dir="-1" aria-label="Move back to ' + (COLS[ci - 1] ? COLS[ci - 1][1] : '') + '"' + (ci === 0 ? ' disabled' : '') + '>&lsaquo;</button>' +
-            '<button class="mv-btn" type="button" data-move="' + t.id + '" data-dir="1" aria-label="Move forward to ' + (COLS[ci + 1] ? COLS[ci + 1][1] : '') + '"' + (ci === COLS.length - 1 ? ' disabled' : '') + '>&rsaquo;</button></span>' +
+            '<button class="mv-btn" type="button" data-move="' + t.id + '" data-dir="1" aria-label="Move forward to ' + (COLS[ci + 1] ? COLS[ci + 1][1] : '') + '"' + (ci === COLS.length - 1 ? ' disabled' : '') + '>&rsaquo;</button></span>') +
             '</div></article>';
         }).join('') || '<p class="muted" style="margin:4px">Nothing here yet</p>') + '</section>';
     }).join('') + '</div>';
@@ -956,31 +990,33 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
       const mine = tasks.filter((t) => t.agent === a.id), open = mine.filter((t) => t.status !== 'done'), st = STATUS[a.status];
       return '<section class="person"><div class="person-head"><span class="sw" style="background:' + a.shirt + '"></span>' +
         '<div class="nm"><b>' + esc(a.name) + '</b><span>' + esc(a.role) + ' · ' + open.length + ' open · ' + (mine.length - open.length) + ' done</span></div>' +
-        '<span class="tag" style="background:' + st.color + '">' + st.label + '</span>' +
-        '<button class="btn sm" type="button" data-assign="' + a.id + '">Assign</button></div>' +
+        '<span class="tag" style="background:' + st.color + (a.status === 'paused' ? ';color:#ffffff' : '') + '">' + st.label + '</span>' +
+        (live ? '<button class="btn sm" type="button" data-pause="' + a.id + '">' + (a.paused ? 'Resume' : 'Pause') + '</button>'
+          : '<button class="btn sm" type="button" data-assign="' + a.id + '">Assign</button>') + '</div>' +
         (open.length ? '<ul class="mini">' + open.map((t) => '<li>' + esc(t.title) + '<span class="st">' + colLabel(t.status) + ' · ' + t.due + '</span></li>').join('') + '</ul>'
-          : '<p class="muted" style="margin:0">No open tasks.' + (a.status === 'idle' ? ' ' + esc(a.name) + ' is idle right now, so this is a good time to assign one.' : '') + '</p>') +
+          : '<p class="muted" style="margin:0">' + (live ? 'Nothing in progress. ' + esc(a.task) : 'No open tasks.' + (a.status === 'idle' ? ' ' + esc(a.name) + ' is idle right now, so this is a good time to assign one.' : '')) + '</p>') +
         '</section>';
     });
     const free = AGENTS.filter((a) => !tasks.some((t) => t.agent === a.id && t.status !== 'done')).length;
-    return '<div class="row"><div class="grow"><h2 class="dr-title">Assigned</h2><div class="muted">Who is working on what · ' + free + ' without an open task</div></div></div>' + rows.join('');
+    return '<div class="row"><div class="grow"><h2 class="dr-title">Assigned</h2><div class="muted">' + (live ? 'What each employee has in progress · pause anyone here' : 'Who is working on what · ' + free + ' without an open task') + '</div></div></div>' + rows.join('');
   }
   function viewGoals() {
     const w = weekInfo();
     const total = goals.reduce((s2, g) => s2 + Math.min(1, g.current / g.target), 0) / goals.length;
-    return '<div class="row"><div class="grow"><h2 class="dr-title">Weekly goals</h2><div class="muted">Week of ' + w.label + ' · ' + Math.round(total * 100) + '% overall · ' + Math.round(w.elapsed * 100) + '% of the work week gone</div></div></div>' +
+    return '<div class="row"><div class="grow"><h2 class="dr-title">Weekly goals</h2><div class="muted">Week of ' + w.label + ' · ' + Math.round(total * 100) + '% overall · ' + (live ? 'counted from the team\'s drafts' : Math.round(w.elapsed * 100) + '% of the work week gone') + '</div></div></div>' +
       goals.map((g) => {
         const pct = Math.min(1, g.current / g.target), st = goalState(g);
         const linked = tasks.filter((t) => t.goal === g.id && t.status !== 'done').length;
         return '<article class="goal"><div class="goal-top"><b>' + esc(g.title) + '</b><span class="tag" style="background:' + st[1] + '">' + st[0] + '</span></div>' +
           '<div class="track" role="img" aria-label="' + Math.round(pct * 100) + ' percent"><i style="width:' + (pct * 100) + '%;background:' + st[1] + '"></i></div>' +
           '<div class="row"><span class="muted">' + g.current + ' / ' + g.target + ' ' + esc(g.unit) + ' · ' + linked + ' open ' + (linked === 1 ? 'task' : 'tasks') + '</span>' +
-          '<span class="moves"><button class="mv-btn" type="button" data-goal="' + g.id + '" data-d="-1" aria-label="Lower progress on ' + esc(g.title) + '">&minus;</button>' +
-          '<button class="mv-btn" type="button" data-goal="' + g.id + '" data-d="1" aria-label="Log progress on ' + esc(g.title) + '">+</button></span></div>' +
+          (live ? '' : '<span class="moves"><button class="mv-btn" type="button" data-goal="' + g.id + '" data-d="-1" aria-label="Lower progress on ' + esc(g.title) + '">&minus;</button>' +
+          '<button class="mv-btn" type="button" data-goal="' + g.id + '" data-d="1" aria-label="Log progress on ' + esc(g.title) + '">+</button></span>') + '</div>' +
           '<div class="row">' + g.owners.map((id) => { const a = byId(id); return '<button class="who-chip" type="button" data-agent="' + a.id + '"><i style="background:' + a.shirt + '"></i>' + esc(a.name) + '</button>'; }).join('') + '</div></article>';
       }).join('');
   }
   function viewReports() {
+    if (live) return viewLiveReports();
     const c = counts(), w = weekInfo();
     const done = tasks.filter((t) => t.status === 'done').length;
     const onTrack = goals.filter((g) => goalState(g)[0] !== 'At risk').length;
@@ -1019,12 +1055,193 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
     }
     return html;
   }
+  let lastTab = null;
   function renderDrawer() {
     drawer.querySelectorAll('.tab').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-    drBody.innerHTML = tab === 'tasks' ? viewTasks() : tab === 'assigned' ? viewAssigned() : tab === 'goals' ? viewGoals() : viewReports();
+    const keep = lastTab === tab ? drBody.scrollTop : 0;
+    drBody.innerHTML = tab === 'approvals' ? viewApprovals() : tab === 'tasks' ? viewTasks() : tab === 'assigned' ? viewAssigned() : tab === 'goals' ? viewGoals() : viewReports();
     drBody.setAttribute('aria-label', colLabelTab(tab));
+    drBody.scrollTop = keep; lastTab = tab;
   }
-  function colLabelTab(t) { return { tasks: 'Task board', assigned: 'Assigned', goals: 'Weekly goals', reports: 'Reports' }[t]; }
+  function colLabelTab(t) { return { approvals: 'Approvals', tasks: 'Task board', assigned: 'Assigned', goals: 'Weekly goals', reports: 'Reports' }[t]; }
+    // ---------------------------------------------------------------- live team: approvals, reports, sign-in, pause
+  const CHECK_LABEL = { scripture: 'Scripture', faith: 'Faith', voice: 'Voice', facts_prices: 'Facts and prices', privacy: 'Privacy', format: 'Format', owner_note_addressed: 'Your note' };
+  const openDrafts = new Set();
+  let noteFor = null, seeded = false, linkSent = null, busy = false;
+  drBody.addEventListener('toggle', (e) => {
+    const art = e.target.closest && e.target.closest('[data-draft]');
+    if (!art || e.target.tagName !== 'DETAILS') return;
+    if (e.target.open) openDrafts.add(art.dataset.draft); else openDrafts.delete(art.dataset.draft);
+  }, true);
+  const para = (v) => esc(v || '').split(/\n{2,}/).map((x) => '<p>' + x.replace(/\n/g, '<br>') + '</p>').join('');
+  function preview(d) {
+    const b = d.body || {};
+    if (d.kind === 'landing_page') {
+      return '<p class="pv-meta">' + esc(b.path || '') + '</p><h4>' + esc(b.headline || '') + '</h4>' + para(b.subhead) +
+        (b.sections || []).map((x) => '<h5>' + esc(x.heading || '') + '</h5>' + para(x.text)).join('') +
+        (b.lead_magnet ? '<p class="pv-box"><b>Free printable:</b> ' + esc(b.lead_magnet.title || '') + '. ' + esc(b.lead_magnet.what_it_is || '') + ' <i>[' + esc(b.lead_magnet.button || '') + ']</i></p>' : '') +
+        (b.cta ? '<p class="pv-box"><b>Main button:</b> ' + esc(b.cta.text || '') + '</p>' : '') +
+        '<p class="pv-meta"><b>Search title:</b> ' + esc(b.meta_title || '') + '<br><b>Search description:</b> ' + esc(b.meta_description || '') + '<br><b>Image:</b> ' + esc(b.hero_image_brief || '') + '</p>';
+    }
+    if (d.kind === 'pin') {
+      return '<h4>' + esc(b.title || '') + '</h4>' + para(b.description) +
+        '<p class="pv-meta"><b>Board:</b> ' + esc(b.board || '') + '<br><b>Links to:</b> ' + esc(b.link_path || '') + '<br><b>Image:</b> ' + esc(b.image_brief || '') + '</p>';
+    }
+    if (d.kind === 'email') {
+      const when = b.send_at ? new Date(b.send_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' US Eastern' : '';
+      return '<p class="pv-meta"><b>Subject:</b> ' + esc(b.subject || '') + '<br><b>Preview text:</b> ' + esc(b.preheader || '') + (when ? '<br><b>Sends:</b> ' + esc(when) : '') + '</p>' +
+        (b.blocks || []).map((k) => (k.heading ? '<h5>' + esc(k.heading) + '</h5>' : '') + para(k.text) + (k.button ? '<p class="pv-box"><i>[' + esc(k.button) + ']</i></p>' : '')).join('') +
+        '<p class="pv-meta">' + esc(b.footer || '') + '</p>';
+    }
+    return '<pre class="pv-raw">' + esc(JSON.stringify(b, null, 2)) + '</pre>';
+  }
+  function draftCard(d) {
+    const a = byId(d.employee_id), rv = d.review || {}, noting = noteFor === d.id;
+    const checks = rv.checks ? Object.keys(rv.checks).filter((k) => rv.checks[k] === 'ok' || rv.checks[k] === 'fail').map((k) => {
+      const v = rv.checks[k], cls = v === 'ok' ? 'ok' : v === 'fail' ? 'bad' : 'na';
+      return '<span class="chk ' + cls + '">' + (cls === 'ok' ? '✓ ' : cls === 'bad' ? '✕ ' : '– ') + esc(CHECK_LABEL[k] || k) + '</span>';
+    }).join('') : '';
+    const list = (arr) => '<ul>' + arr.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    return '<article class="draft" data-draft="' + d.id + '">' +
+      '<div class="draft-top"><span class="kind">' + esc(KIND_LABEL[d.kind] || d.kind) + '</span><b>' + esc(d.title) + '</b></div>' +
+      '<div class="tmeta"><button class="who-chip" type="button" data-agent="' + a.id + '"><i style="background:' + a.shirt + '"></i>' + esc(a.name) + '</button>' +
+      (d.scheduled_for ? '<span>For ' + shortDate(d.scheduled_for) + '</span>' : '') +
+      (d.campaign ? '<span>' + esc(d.campaign) + '</span>' : '') +
+      (d.revision > 1 ? '<span>Revision ' + d.revision + '</span>' : '') + '</div>' +
+      (rv.passed === false ? '<p class="warn">Ruth could not pass this after several rounds. Read her notes before you decide.</p>' : '') +
+      (rv.needs_pastor ? '<p class="warn">Needs your pastor\'s sign-off before it goes out.</p>' : '') +
+      (rv.for_owner && rv.for_owner.length ? '<div class="flags"><b>Only you can settle</b>' + list(rv.for_owner) + '</div>' : '') +
+      (checks ? '<div class="checks" aria-label="Ruth\'s checks">' + checks + '</div>' : '') +
+      (rv.notes && rv.notes.length ? '<div class="rnotes"><b>Ruth\'s notes</b>' + list(rv.notes) + '</div>' : '') +
+      (d.owner_note && d.revision > 1 ? '<p class="muted">Your last note: “' + esc(d.owner_note) + '”</p>' : '') +
+      '<details' + (openDrafts.has(d.id) ? ' open' : '') + '><summary>Read the draft</summary><div class="preview">' + preview(d) + '</div></details>' +
+      (noting ? '<label class="note" for="note-' + d.id + '">What should change? (needed to send it back)<textarea id="note-' + d.id + '" rows="3" maxlength="1000"></textarea></label>' : '') +
+      '<div class="actions">' + (noting
+        ? '<button class="btn sm" type="button" data-cancel-note="1">Cancel</button><button class="btn sm" type="button" data-decide="rejected" data-id="' + d.id + '">Reject</button><button class="btn primary sm" type="button" data-decide="sent_back" data-id="' + d.id + '">Send back</button>'
+        : '<button class="btn sm" type="button" data-note="' + d.id + '">Send back or reject…</button><button class="btn primary sm" type="button" data-decide="approved" data-id="' + d.id + '">Approve</button>') +
+      '</div></article>';
+  }
+  function viewApprovals() {
+    if (!live) return viewSignIn();
+    const waiting = data.drafts.filter((d) => d.status === 'awaiting_approval').sort((x, y) => new Date(x.updated_at) - new Date(y.updated_at));
+    if (!seeded && waiting.length) { openDrafts.add(waiting[0].id); seeded = true; }
+    const withTeam = data.drafts.filter((d) => d.status === 'in_review' || d.status === 'sent_back').length;
+    const recent = data.drafts.filter((d) => d.decided_at).sort((x, y) => new Date(y.decided_at) - new Date(x.decided_at)).slice(0, 8);
+    const label = (d) => (d.status === 'approved' || d.status === 'published' ? 'Approved' : d.status === 'rejected' ? 'Rejected' : 'Sent back');
+    return '<div class="row"><div class="grow"><h2 class="dr-title">Approvals</h2><div class="muted">' + waiting.length + ' waiting for you · ' + withTeam + ' still with the team · nothing goes out without your approval</div></div></div>' +
+      (waiting.length ? waiting.map(draftCard).join('') : '<p class="empty">Nothing is waiting for you. Ruth passes drafts here once she has checked them.</p>') +
+      (recent.length ? '<section class="sec"><h3>Recently decided</h3><ul class="mini">' + recent.map((d) => '<li>' + esc(d.title) + '<span class="st">' + label(d) + ' · ' + shortDate(d.decided_at) + '</span></li>').join('') + '</ul></section>' : '');
+  }
+  function viewSignIn() {
+    const r = hq.reason;
+    let html = '<div class="row"><div class="grow"><h2 class="dr-title">Your live team</h2><div class="muted">This is the demo office with sample people</div></div></div>';
+    if (r === 'unconfigured') return html + '<p>Live mode needs the workspace address and key in <code>src/lib/config.js</code>.</p>';
+    if (r === 'not_owner') return html + '<p>You\'re signed in as <b>' + esc(hq.email) + '</b>, which isn\'t an owner of this workspace. An owner can add your email to <code>hq_owners</code>.</p><div class="actions"><button class="btn sm" type="button" data-signout="1">Sign out</button></div>';
+    if (r === 'error') {
+      html += '<p class="warn">Couldn\'t reach the workspace: ' + esc(hq.error || 'unknown error') + '</p>';
+      if (hq.email) return html + '<div class="actions"><button class="btn sm" type="button" data-signout="1">Sign out</button></div>';
+    }
+    if (linkSent) return html + '<p class="pv-box">Check <b>' + esc(linkSent) + '</b> for a sign-in link and open it in this browser.</p>';
+    return html + '<p>Sign in with your owner email to watch your AI employees work, approve their drafts and pause them.</p>' +
+      '<form class="form" id="signin-form"><label class="wide" for="f-email">Email<input id="f-email" type="email" required autocomplete="email"></label>' +
+      '<div class="actions"><button class="btn primary sm" type="submit">Email me a sign-in link</button></div></form>';
+  }
+  function viewLiveReports() {
+    const runs = weekRuns(data.runs), decided = weekDecided(data.drafts);
+    const waiting = data.drafts.filter((d) => d.status === 'awaiting_approval').length;
+    const approved = decided.filter((d) => d.status === 'approved' || d.status === 'published').length;
+    const made = data.drafts.filter((d) => thisWeek(d.created_at));
+    const failed = runs.filter((r) => r.outcome === 'failed').length;
+    const w = weekInfo();
+    let html = '<div class="row"><div class="grow"><h2 class="dr-title">Reports</h2><div class="muted">Week of ' + w.label + ' · from the team\'s runs and drafts</div></div></div>' +
+      '<div class="kpis">' +
+      '<div class="kpi"><span>Waiting for you</span><b>' + waiting + '</b><small>' + (waiting === 1 ? 'draft' : 'drafts') + '</small></div>' +
+      '<div class="kpi"><span>Drafts this week</span><b>' + made.length + '</b><small>written by the team</small></div>' +
+      '<div class="kpi"><span>Approved</span><b>' + approved + '</b><small>this week</small></div>' +
+      '<div class="kpi"><span>Runs</span><b>' + runs.length + '</b><small>' + failed + ' failed this week</small></div></div>';
+    html += '<section class="sec"><h3>People</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Employee</th><th>Status now</th><th>Last run</th><th class="num">Drafts this week</th><th class="num">Waiting</th></tr></thead><tbody>' +
+      AGENTS.map((a) => '<tr><td><span class="dot" style="background:' + a.shirt + '"></span>' + esc(a.name) + '</td><td><span class="dot" style="background:' + STATUS[a.status].color + '"></span>' + STATUS[a.status].label + '</td><td>' + (a.lastRun ? ago(a.lastRun) + ' ago' : 'Not yet') + '</td><td class="num">' + made.filter((d) => d.employee_id === a.id).length + '</td><td class="num">' + a.waiting + '</td></tr>').join('') +
+      '</tbody></table></div></section>';
+    html += '<section class="sec"><h3>Latest runs</h3>' + (data.runs.length ? '<ul class="mini runs">' + data.runs.slice(0, 12).map((r) => {
+      const a = byId(r.employee_id);
+      return '<li><span class="dot" style="background:' + a.shirt + '"></span><span class="grow"><b>' + esc(a.name) + '</b> ' + esc(r.summary || (r.finished_at ? '' : 'Still running')) + '</span><span class="st">' + esc(r.outcome || 'running') + ' · ' + ago(r.started_at) + ' ago</span></li>';
+    }).join('') + '</ul>' : '<p class="muted">No runs yet.</p>') + '</section>';
+    return html;
+  }
+  async function doDecide(id, decision) {
+    if (busy) return;
+    const ta = document.getElementById('note-' + id), note = ta ? ta.value.trim() : '';
+    if (decision === 'sent_back' && !note) { toast('Add a note so they know what to change'); if (ta) ta.focus(); return; }
+    busy = true;
+    try {
+      await decide(id, decision, note);
+      noteFor = null;
+      toast({ approved: 'Approved', sent_back: 'Sent back with your note', rejected: 'Rejected' }[decision]);
+      await refresh(true);
+    } catch (err) { toast(err.message); } finally { busy = false; }
+  }
+  async function togglePause(id) {
+    const a = AGENTS.find((x) => x.id === id);
+    if (!a || busy) return;
+    busy = true;
+    try {
+      await setPaused(id, !a.paused);
+      toast(a.paused ? a.name + ' will work again at the next scheduled run' : a.name + ' is paused and will skip runs until you resume');
+      await refresh(true);
+    } catch (err) { toast(err.message); } finally { busy = false; }
+  }
+  async function doSignIn() {
+    const el = document.getElementById('f-email'), email = el ? el.value.trim() : '';
+    if (!email) { if (el) el.focus(); return; }
+    try { await signIn(email); linkSent = email; renderDrawer(); } catch (err) { toast(err.message); }
+  }
+  async function doSignOut() { await signOut(); window.location.reload(); }
+  function renderAccount() {
+    const m = document.getElementById('mode'), b = document.getElementById('acct');
+    if (live) { m.textContent = 'Live · ' + hq.email; b.textContent = 'Sign out'; }
+    else if (hq.reason === 'not_owner') { m.textContent = 'Demo · ' + hq.email + ' is not an owner'; b.textContent = 'Sign out'; }
+    else if (hq.reason === 'unconfigured') { m.textContent = 'Demo office'; b.hidden = true; }
+    else { m.textContent = 'Demo office · sample people'; b.textContent = 'Sign in'; }
+  }
+  document.getElementById('acct').addEventListener('click', () => {
+    if (live || hq.email) doSignOut(); else openDrawer('approvals');
+  });
+  function updateBadge() {
+    const el = document.getElementById('appr-n');
+    const n = live ? data.drafts.filter((d) => d.status === 'awaiting_approval').length : 0;
+    el.textContent = String(n); el.hidden = !n;
+  }
+  function placePerson(p) {
+    const a = p.a;
+    if (a.at) { const w = W(a.at); p.root.position.set(w[0], 0, w[1]); p.root.rotation.y = a.yaw; }
+    p.cup.visible = a.pose === 'sip'; p.paddle.visible = a.pose === 'paddle';
+    p.ring.material.color.set(STATUS[a.status].color);
+    p.tagMat.map.dispose(); p.tagMat.map = tagTexture(a.name, STATUS[a.status].color); p.tagMat.needsUpdate = true;
+  }
+  let refreshing = false, again = null, lastSig = '';
+  const sigOf = (d) => d.employees.map((e) => e.id + e.status + e.current_task + e.paused).join('|') + '#' + d.drafts.map((x) => x.id + x.status + x.updated_at).join('|') + '#' + (d.runs[0] ? d.runs[0].id + d.runs[0].finished_at : '');
+  async function refresh(force) {
+    if (!live) return;
+    if (refreshing) { again = again === true || !!force; return; }   // run once more when this one finishes
+    refreshing = true;
+    try {
+      data = await fetchAll();
+      const sig = sigOf(data);
+      const moved = syncAgents(AGENTS, data);
+      people.forEach((p) => { if (moved.indexOf(p.a.id) >= 0) placePerson(p); });
+      renderCard();
+      if (!force && sig === lastSig) return;
+      lastSig = sig;
+      tasks = liveTasks(data.drafts); goals = liveGoals(data.drafts);
+      renderChips(); applyFilter(); renderCard(); drawBoards(); updateBadge();
+      const f = document.activeElement, typing = f && drawer.contains(f) && /INPUT|TEXTAREA/.test(f.tagName);
+      if (!drawer.hidden && (force || !typing)) renderDrawer();
+    } catch (err) { console.warn('Agent HQ refresh failed', err); } finally {
+      refreshing = false;
+      if (again !== null) { const f = again; again = null; refresh(f); }
+    }
+  }
+  if (live) lastSig = sigOf(data);
   function changed(refocus) {
     save(); renderDrawer(); drawBoards(); renderCard();
     if (refocus) { const el = drBody.querySelector(refocus); if (el && !el.disabled) el.focus(); }
@@ -1042,6 +1259,11 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
     if (!el || !drawer.contains(el)) return;
     if (el.dataset.tab) { tab = el.dataset.tab; formOpen = false; renderDrawer(); return; }
     if (el.id === 'dr-close') { closeDrawer(); return; }
+    if (el.dataset.decide) { doDecide(el.dataset.id, el.dataset.decide); return; }
+    if (el.dataset.note) { noteFor = el.dataset.note; openDrafts.add(noteFor); renderDrawer(); const ta = document.getElementById('note-' + noteFor); if (ta) ta.focus(); return; }
+    if (el.dataset.cancelNote) { noteFor = null; renderDrawer(); return; }
+    if (el.dataset.pause) { togglePause(el.dataset.pause); return; }
+    if (el.dataset.signout) { doSignOut(); return; }
     if (el.dataset.move) {
       const t = tasks.find((x) => x.id === el.dataset.move); if (!t) return;
       const i = COLS.findIndex((c) => c[0] === t.status);
@@ -1063,6 +1285,7 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
   });
   drawer.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (e.target.id === 'signin-form') { doSignIn(); return; }
     const title = document.getElementById('f-title').value.trim();
     if (!title) { focusTitle(); return; }
     const agent = document.getElementById('f-who').value;
@@ -1309,11 +1532,13 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
       const sel = p.i === state.selected;
       p.ring.material.opacity = sel ? 1 : 0.85;
     });
-    const relay = people.find((p) => p.a.id === 'relay');
+    const sleeper = people.find((p) => p.a.status === 'idle' && p.root.visible && !p.a.script);
     const zc = (t % 2.6) / 2.6;
-    zz.position.set(relay.root.position.x + 0.8 + zc * 0.6, 5.2 + zc * 2, relay.root.position.z);
-    zz.material.opacity = Math.sin(zc * PI);
-    zz.visible = relay.tag.visible;
+    if (sleeper) {
+      zz.position.set(sleeper.root.position.x + 0.8 + zc * 0.6, 5.2 + zc * 2, sleeper.root.position.z);
+      zz.material.opacity = Math.sin(zc * PI);
+      zz.visible = sleeper.tag.visible;
+    } else zz.visible = false;
 
     // selection arrow
     const sp = people[state.selected];
@@ -1399,6 +1624,15 @@ import { DAYS, COLS, SEED_TASKS, SEED_GOALS, UTIL, HOURS, ATTEND } from './data/
     people.forEach((p) => { p.tagMat.map.dispose(); p.tagMat.map = tagTexture(p.a.name, STATUS[p.a.status].color); p.tagMat.needsUpdate = true; });
     drawBoards();
   });
+  renderAccount(); updateBadge();
+  if (live) {
+    setInterval(() => { if (!document.hidden) refresh(); }, POLL_MS);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+  }
   loadingEl.hidden = true;
   requestAnimationFrame((n) => { last = n; frame(n); });
-})();
+}
+
+connect()
+  .catch((err) => ({ mode: 'demo', reason: 'error', error: err.message }))
+  .then(startScene);

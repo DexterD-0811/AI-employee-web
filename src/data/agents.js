@@ -1,7 +1,7 @@
-// The people on the office floor. For now this is example data; the AI employees
-// will replace it with live rows from the shared workspace (see README).
+// The people in the demo office (shown when nobody is signed in), and the status list
+// shared with the live office. Signed-in owners see their real team from Supabase instead.
 //
-// status: working | break | lunch | idle | commute
+// status: working | waiting | break | lunch | idle | paused | commute
 // at:     seat position in office-local studs [x, z]; yaw = facing (radians)
 // pose:   type | typeBack | gesture | restBack | sip | eat | eatBack | idleBack | paddle | paddleBack | walk
 // script: kai | leo | mara  (people who walk a scripted path instead of sitting)
@@ -10,9 +10,11 @@ const PI = Math.PI;
 
 export const STATUS = {
   working: { label: 'Working', color: '#3d8bff' },
+  waiting: { label: 'Waiting for you', color: '#ff5c8a' },
   break: { label: 'On break', color: '#ffb020' },
   lunch: { label: 'Lunch', color: '#ff7a3d' },
   idle: { label: 'Idle', color: '#a0a8b5' },
+  paused: { label: 'Paused', color: '#5b6472' },
   commute: { label: 'Commuting', color: '#a77bff' }
 };
 

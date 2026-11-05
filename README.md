@@ -5,9 +5,9 @@ front end for the Little Faith Club AI sales team: each employee shows up as a
 person on the office floor, and the Task board, Assigned board, Weekly goals and
 Reports show what the team is doing.
 
-This first version is the design: the office, the town around it and the
-manager tools, running on example data. The AI employees come next (see
-"What comes next").
+Signed out, it shows a demo office with sample people. Signed in as an owner, it
+shows the real team: four AI employees who draft marketing for Little Faith Club,
+and an Approvals queue where you approve, send back or reject everything they write.
 
 ## Run it
 
@@ -50,21 +50,72 @@ src/data/agents.js    the people on the floor and the status list
 src/data/boards.js    starting tasks, weekly goals and sample report figures
 ```
 
-Everything in `src/data/` is example data. Tasks and goals edited in the app are
-saved in that browser only (localStorage).
+`src/data/` is the demo office. In the demo, tasks and goals you edit are saved
+in that browser only (localStorage).
+
+```
+src/lib/config.js     Supabase address and publishable key (override with a .env file)
+src/lib/hq.js         sign-in, loading the team, approve/send back/reject, pause
+src/lib/live.js       turns workspace rows into people, task cards and weekly goals
+agents/               the AI employees' playbooks (see below)
+supabase/             the workspace tables (migrations) and starting data (seed)
+```
+
+## The AI team
+
+Four employees work in draft-only mode. Each is a playbook in this repository
+plus a Claude scheduled task that wakes it, reads the playbook and works in the
+shared Supabase workspace (project `little-faith-club`).
+
+| Employee | Playbook | Schedule (Manila time) | Writes |
+|---|---|---|---|
+| Cora, Content Producer | `agents/content-producer/SKILL.md` | Mon–Thu 8:43 | Landing pages, 2 a run |
+| Pip, Pinterest and SEO Marketer | `agents/pinterest-marketer/SKILL.md` | Daily 5:41 | 3 pins per page, up to 10 a run |
+| Ellie, Email Marketer | `agents/email-marketer/SKILL.md` | Thu 13:45 | Sunday, welcome and seasonal emails, up to 3 a run |
+| Ruth, Faith and Brand Reviewer | `agents/brand-reviewer/SKILL.md` | Every 2 hours, 7:45–19:45 | Checks every draft, passes it to you or sends it back |
+
+All four read `agents/brand/BRAND.md` (voice, statement of faith, prices,
+privacy) and `agents/shared/WORKSPACE.md` (tables, SQL, draft shapes).
+
+How a draft moves: an employee writes it → Ruth checks Scripture word for word
+against the catalogue, faith, voice, prices, privacy and format → it waits in
+**Approvals** → you approve, send it back with a note, or reject it. A
+sent-back draft goes to the top of its writer's next run. Nothing is published,
+posted or emailed; approved drafts wait until the channels are connected.
+
+The **Pause** button on an employee's card (or in Assigned) stops their runs
+until you resume them.
+
+To change what an employee does, edit their playbook and push to `main`; the
+next run picks it up.
+
+## Live mode setup
+
+1. In the Supabase dashboard for `little-faith-club`, open **Authentication →
+   URL Configuration** and add every address you open Agent HQ from to
+   **Redirect URLs**, e.g. `http://localhost:5173` and `http://localhost:4173`,
+   plus your hosted address once it's deployed. Without this, the sign-in link
+   won't come back to Agent HQ.
+2. Open Agent HQ, choose **Sign in**, and enter an owner email. Owners are listed
+   in the `hq_owners` table.
+3. Open the link from the email in the same browser.
+
+The publishable key in `src/lib/config.js` is safe to ship: row-level security
+lets only owners read the workspace, and owners change things only through the
+`hq_decide` and `hq_set_paused` functions.
+
+To set the workspace up from scratch, run the files in `supabase/migrations/`
+in order, then `supabase/seed/hq_seed.sql`, then add an owner:
+`insert into hq_owners (email) values ('you@example.com');`
 
 ## What comes next
 
-The plan is in the doc "Little Faith Club AI sales team plan". In short:
-
-1. Brand foundation: a shared brand skill, statement of faith, offers and
-   prices, and the World English Bible text.
-2. Shared workspace in Supabase (content, pins, emails, leads, tasks,
-   approvals, metrics, employee status) and Agent HQ reading from it instead of
-   `src/data/`.
-3. The first four employees in draft-only mode: Content Producer, Pinterest
-   and SEO Marketer, Email Marketer, Faith and Brand Reviewer.
-4. An approval queue in Agent HQ, so nothing reaches customers without your yes.
+- Connect Brevo so approved emails become campaign drafts, and choose a route
+  for pins (Pinterest's API, Tailwind, or posting by hand).
+- Replace the working statement of faith in `BRAND.md` with the club's own, and
+  settle the two prices the docs disagree on ($39 or $39.99 a year; church
+  licence from $99 or $149).
+- Add the Sales Analyst and the Church Partnerships Rep.
 
 ## Notes
 

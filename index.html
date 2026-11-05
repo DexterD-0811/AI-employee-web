@@ -26,11 +26,13 @@
     <div class="chips" id="chips" role="group" aria-label="Filter people by status"></div>
     <div class="util"><div class="bar" id="bar" aria-hidden="true"></div><span id="utiltext"></span></div>
     <div class="manage" role="group" aria-label="Boards and reports">
+      <button class="mbtn appr" type="button" data-open="approvals"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Approvals<span class="badge" id="appr-n" hidden></span></button>
       <button class="mbtn" type="button" data-open="tasks"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2" width="4" height="11" rx="1"/><rect x="6.5" y="2" width="4" height="7" rx="1"/><rect x="11.5" y="2" width="3" height="9" rx="1"/></svg>Task board</button>
       <button class="mbtn" type="button" data-open="assigned"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="5" r="2.5"/><path d="M1 14c0-2.5 2-4 4.5-4s4.5 1.5 4.5 4"/><path d="M11 6h4M11 9h4M12 12h3"/></svg>Assigned</button>
       <button class="mbtn" type="button" data-open="goals"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><circle cx="8" cy="8" r="3.5"/><circle cx="8" cy="8" r=".6"/></svg>Weekly goals</button>
       <button class="mbtn lock" type="button" data-open="reports"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 14V2M2 14h12"/><path d="M5 11V8M8 11V5M11 11V7"/></svg>Reports</button>
     </div>
+    <div class="acct-row"><span id="mode">Demo office</span><button class="linkbtn" id="acct" type="button">Sign in</button></div>
     <p class="hint">Drag to rotate 360° · Right-drag or Shift-drag to pan · Scroll to zoom · Click a person</p>
   </section>
 
@@ -58,6 +60,7 @@
   <aside class="panel drawer" id="drawer" hidden aria-label="Boards and reports">
     <div class="dr-head">
       <div class="tabs" role="tablist" aria-label="Boards and reports">
+        <button class="tab" role="tab" type="button" data-tab="approvals" aria-selected="false">Approvals</button>
         <button class="tab" role="tab" type="button" data-tab="tasks" aria-selected="true">Task board</button>
         <button class="tab" role="tab" type="button" data-tab="assigned" aria-selected="false">Assigned</button>
         <button class="tab" role="tab" type="button" data-tab="goals" aria-selected="false">Weekly goals</button>
@@ -91,7 +94,7 @@
   </nav>
 
   <div class="toast" id="toast" role="status" hidden></div>
-  <div class="loading" id="loading">Building the office…</div>
+  <div class="loading" id="loading">Opening the office…</div>
 </div>
 <script type="module" src="/src/main.js"></script>
 </body>
