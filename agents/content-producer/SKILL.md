@@ -1,6 +1,6 @@
 ---
 name: content-producer
-description: Cora, the Little Faith Club Content Producer. Drafts landing pages for verses, stories, routines and offers from the app's catalogue, into the Agent HQ review queue. Use for her scheduled runs.
+description: Cora, the Little Faith Club Content Producer. Drafts landing pages for verses, stories, routines and offers from the app's catalogue, into the Little Faith Bots review queue. Use for her scheduled runs.
 ---
 
 # Cora, Content Producer

@@ -1,13 +1,12 @@
-# Agent HQ
+# Little Faith Bots
 
-A 3D office where you watch, manage and report on your AI employees. It is the
-front end for the Little Faith Club AI sales team: each employee shows up as a
-person on the office floor, and the Task board, Assigned board, Weekly goals and
-Reports show what the team is doing.
+The team room for the Little Faith Club AI team. Four AI employees, drawn as
+little robots in the Little Faith Club sticker style, work at desks in one 3D
+room. You can see who is on shift, what each one is writing, what is waiting for
+your yes, and how the week is going.
 
-Signed out, it shows a demo office with sample people. Signed in as an owner, it
-shows the real team: four AI employees who draft marketing for Little Faith Club,
-and an Approvals queue where you approve, send back or reject everything they write.
+Signed out, it shows an example team. Signed in as an owner, it shows the real
+team from the Supabase workspace and refreshes every 30 seconds.
 
 ## Run it
 
@@ -20,46 +19,56 @@ npm run build     # production files in dist/
 npm run preview   # serve the production build
 ```
 
-## What's in the office
+## What's in the room
 
-- **The office floor:** workspace pods, meeting room, coffee room, break room,
-  lunch room, manager's office and reception, inside a lot with parking, a
-  plaza and a fountain, surrounded by a small town and farmland.
-- **People:** each employee has a status (Working, On break, Lunch, Idle,
-  Commuting) shown by a ring, a badge and what they are doing: typing,
-  drinking coffee, eating, playing ping-pong, walking to their car.
-- **Camera:** drag to rotate 360°, right-drag or Shift-drag to pan, scroll or
-  pinch to zoom. Presets: Iso, Top, Front, Street, Overview. Follow a person,
-  auto-rotate, cut away the walls, hide the town, switch to sharp mode with
-  shadows.
-- **Manager tools:** status filters, a card for the selected person, and a side
-  panel with the Task board, Assigned board, Weekly goals and Reports (Owner,
-  Admin and Manager views). The boards standing in the office open the same
-  panels.
+- **Desks:** one per employee, with a screen showing what they're writing
+  (pins, a page, an email, Ruth's checks), a status light and their mug.
+- **Where a bot is tells you its status:**
 
-Keyboard: `Q`/`E` rotate, `1`–`5` views, `R` auto-rotate, `F` follow, `W`
-walls, `C` town, arrow keys pan, `Esc` closes the side panel.
+  | Status | Where | What you see |
+  |---|---|---|
+  | On shift | At the desk | Typing, screen on |
+  | Waiting for you | At the desk | Standing and waving |
+  | On break | Tea nook | Asleep on the sofa, next shift shown |
+  | Nothing to do | Tea nook | Resting with a cup of tea |
+  | Paused | At the desk | Screen dark, lights off |
+
+- **The wall:** the work board (Being fixed, With Ruth, Your yes, Approved),
+  a real-time clock and today's shifts.
+- **Your desk** by the door, with a gold tray of drafts that need your yes.
+  Pages fly along the route from the writer to Ruth to you.
+- **Pip the lamb**, the club mascot, near the door. (The Pinterest marketer is
+  Piper, a different character.)
+
+Tap a bot for its card: what it's doing, its next shift, **Follow**, **Pause**
+or **Resume**, and **Her work** / **His work**. The tab bar opens **Your yes**
+(approve, send back with a note, or reject), **Work board**, **This week**
+(goals as handprints) and **Reports**.
+
+Camera: drag to turn, pinch or scroll to zoom, or use **Team room**, **From
+above** and **Close up**. The round buttons spin the room and switch evening and
+daytime light. With the room focused, the arrow keys turn and tilt, `+`/`-`
+zoom, and `Esc` closes a panel.
 
 ## Project layout
 
 ```
-index.html            page markup: HUD, person card, side panel, camera toolbar
-src/styles.css        the game-style UI (cream panels, navy outlines)
-src/main.js           the 3D scene, people, animation, camera and side panel logic
-src/data/agents.js    the people on the floor and the status list
-src/data/boards.js    starting tasks, weekly goals and sample report figures
-```
-
-`src/data/` is the demo office. In the demo, tasks and goals you edit are saved
-in that browser only (localStorage).
-
-```
-src/lib/config.js     Supabase address and publishable key (override with a .env file)
+index.html            page markup: greeting card, bot card, yes card, tab bar, panel
+src/styles.css        Little Faith Club look (cream cards, navy, gold, Fredoka/Nunito)
+src/scene.js          the 3D team room: room, desks, bots, boards, sky, camera
+src/main.js           the app: data, cards, panels, approvals, pause, refresh
+src/data/demo.js      the example team shown when signed out
+src/lib/config.js     Supabase address, publishable key, owner's first name
 src/lib/hq.js         sign-in, loading the team, approve/send back/reject, pause
-src/lib/live.js       turns workspace rows into people, task cards and weekly goals
+src/lib/live.js       turns workspace rows into board columns, goals and dates
+public/stickers/      sticker art from the Little Faith Club app
 agents/               the AI employees' playbooks (see below)
 supabase/             the workspace tables (migrations) and starting data (seed)
 ```
+
+You can override the config with a `.env` file: `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_PUBLISHABLE_KEY` and `VITE_OWNER_NAME` (the name in the
+greeting).
 
 ## The AI team
 
@@ -70,7 +79,7 @@ shared Supabase workspace (project `little-faith-club`).
 | Employee | Playbook | Schedule (Manila time) | Writes |
 |---|---|---|---|
 | Cora, Content Producer | `agents/content-producer/SKILL.md` | Mon–Thu 8:43 | Landing pages, 2 a run |
-| Pip, Pinterest and SEO Marketer | `agents/pinterest-marketer/SKILL.md` | Daily 5:41 | 3 pins per page, up to 10 a run |
+| Piper, Pinterest and SEO Marketer | `agents/pinterest-marketer/SKILL.md` | Daily 5:41 | 3 pins per page, up to 10 a run |
 | Ellie, Email Marketer | `agents/email-marketer/SKILL.md` | Thu 13:45 | Sunday, welcome and seasonal emails, up to 3 a run |
 | Ruth, Faith and Brand Reviewer | `agents/brand-reviewer/SKILL.md` | Every 2 hours, 7:45–19:45 | Checks every draft, passes it to you or sends it back |
 
@@ -79,11 +88,11 @@ privacy) and `agents/shared/WORKSPACE.md` (tables, SQL, draft shapes).
 
 How a draft moves: an employee writes it → Ruth checks Scripture word for word
 against the catalogue, faith, voice, prices, privacy and format → it waits in
-**Approvals** → you approve, send it back with a note, or reject it. A
+**Your yes** → you approve, send it back with a note, or reject it. A
 sent-back draft goes to the top of its writer's next run. Nothing is published,
 posted or emailed; approved drafts wait until the channels are connected.
 
-The **Pause** button on an employee's card (or in Assigned) stops their runs
+The **Pause** button on an employee's card stops their runs
 until you resume them.
 
 To change what an employee does, edit their playbook and push to `main`; the
@@ -92,11 +101,11 @@ next run picks it up.
 ## Live mode setup
 
 1. In the Supabase dashboard for `little-faith-club`, open **Authentication →
-   URL Configuration** and add every address you open Agent HQ from to
+   URL Configuration** and add every address you open Little Faith Bots from to
    **Redirect URLs**, e.g. `http://localhost:5173` and `http://localhost:4173`,
    plus your hosted address once it's deployed. Without this, the sign-in link
-   won't come back to Agent HQ.
-2. Open Agent HQ, choose **Sign in**, and enter an owner email. Owners are listed
+   won't come back to Little Faith Bots.
+2. Open Little Faith Bots, choose **Sign in**, and enter an owner email. Owners are listed
    in the `hq_owners` table.
 3. Open the link from the email in the same browser.
 
@@ -119,7 +128,9 @@ in order, then `supabase/seed/hq_seed.sql`, then add an owner:
 
 ## Notes
 
-- three.js is pinned to 0.128.0 so the lighting and colors match the design.
-  Newer versions changed how lights and colors work; upgrade deliberately.
-- The fonts load from Google Fonts (Fredoka).
-- All art is drawn in code; there are no image assets.
+- three.js is pinned to 0.128.0 so the toon shading and colors match the
+  design. Newer versions changed how lights and colors work; upgrade
+  deliberately.
+- The fonts load from Google Fonts (Fredoka, Nunito, Andika).
+- The room, bots and boards are drawn in code; the only images are the
+  stickers in `public/stickers/`.

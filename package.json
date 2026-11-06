@@ -1,8 +1,8 @@
 {
-  "name": "ai-employee-web",
+  "name": "little-faith-bots",
   "private": true,
   "version": "0.1.0",
-  "description": "Agent HQ: a 3D office where you watch, manage and report on your AI employees.",
+  "description": "Little Faith Bots: the Little Faith Club team room, where you watch, approve and pause your AI employees.",
   "type": "module",
   "scripts": {
     "dev": "vite",

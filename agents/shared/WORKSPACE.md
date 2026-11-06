@@ -1,6 +1,6 @@
 # The shared workspace
 
-All four employees work in one Supabase database, and Agent HQ shows it to the
+All four employees work in one Supabase database, and Little Faith Bots shows it to the
 owner. Use the **Supabase connector** (`execute_sql`) on project
 `zyhmbbewqmplceycarfr`. You connect as the database owner, so nothing stops
 you from writing anywhere. The rules below are what keep you safe.
@@ -74,7 +74,7 @@ summary of what went wrong, and set your status to `idle`.
 - You insert drafts as `in_review`.
 - Ruth (reviewer) moves them to `awaiting_approval` or `sent_back`, with her
   checks in `review`.
-- The owner approves, sends back with `owner_note`, or rejects, from Agent HQ.
+- The owner approves, sends back with `owner_note`, or rejects, from Little Faith Bots.
 - `published` is set later, when a connected channel actually posts or sends.
   Nobody on the team publishes yet.
 
@@ -132,7 +132,7 @@ Paste `text` exactly as returned. Write the reference as it appears in `title`
 
 ## Body shapes
 
-Each kind of draft has a fixed `body` shape so Agent HQ can show it and a
+Each kind of draft has a fixed `body` shape so Little Faith Bots can show it and a
 channel can publish it later. Keep to these keys.
 
 ### `landing_page` (Cora)
@@ -158,7 +158,7 @@ channel can publish it later. Keep to these keys.
 `cta.offer` is one of `free`, `plus_annual`, `plus_monthly`, `founding`,
 `gift_year`, `pack`, `storybook`, `bundle`.
 
-### `pin` (Pip)
+### `pin` (Piper)
 
 ```json
 {
