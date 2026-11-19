@@ -11,7 +11,8 @@ export function demoData() {
       { id: 'content', name: 'Cora', role: 'Content Producer', status: 'break', current_task: 'Next run Mon 8:43', paused: false, last_run_at: ago(1440), look: look('#6a4c8e'), sort: 1, updated_at: ago(1440) },
       { id: 'pinterest', name: 'Piper', role: 'Pinterest and SEO Marketer', status: 'working', current_task: 'Writing 3 pins for Psalm 56:3', paused: false, last_run_at: ago(4), look: look('#ee8f78'), sort: 2, updated_at: ago(4) },
       { id: 'email', name: 'Ellie', role: 'Email Marketer', status: 'break', current_task: 'Next run Thu 1:45', paused: false, last_run_at: ago(1440), look: look('#5e9c76'), sort: 3, updated_at: ago(1440) },
-      { id: 'reviewer', name: 'Ruth', role: 'Faith and Brand Reviewer', status: 'working', current_task: 'Checking Piper’s pins', paused: false, last_run_at: ago(2), look: look('#6f9fc2'), sort: 4, updated_at: ago(2) }
+      { id: 'reviewer', name: 'Ruth', role: 'Faith and Brand Reviewer', status: 'working', current_task: 'Checking Piper’s pins', paused: false, last_run_at: ago(2), look: look('#6f9fc2'), sort: 4, updated_at: ago(2) },
+      { id: 'blogger', name: 'Janna', role: 'Blogger', status: 'waiting', current_task: 'Waiting for you: 3 blog ideas to approve', paused: false, last_run_at: ago(40), look: look('#e9a93a'), sort: 5, updated_at: ago(40) }
     ],
     drafts: [
       {
@@ -24,6 +25,11 @@ export function demoData() {
         body: { subject: 'This week: God made everything', preheader: 'A 4-minute story, one verse and a little walk outside', send_at: '2026-11-08T18:00:00-05:00', blocks: [{ type: 'greeting', text: 'Hi there, November is here and the leaves are putting on their best show of the year.' }, { type: 'verse', heading: 'Say it together', text: '“In the beginning, God created the heavens and the earth.” Genesis 1:1 (WEB)' }], footer: 'You’re getting this because you signed up at Little Faith Club. {{unsubscribe}}' },
         review: passed(), owner_note: null, created_at: ago(1500), updated_at: ago(1301), decided_at: null
       },
+      {
+        id: 'demo-blog', employee_id: 'blogger', kind: 'blog_post', title: 'Advent with toddlers: a simple 4-week plan for 2026', slug: 'advent-with-toddlers', status: 'awaiting_approval', revision: 1, campaign: 'advent-2026', scheduled_for: null,
+        body: { stage: 'suggestion', path: '/blog/advent-with-toddlers/', search_question: 'How do I do Advent with a toddler?', description: 'A calm, 5-minutes-a-day Advent plan for children 2 to 8, with one verse and one tiny activity each week.', why_now: 'Advent starts Sunday 29 November; parents search for ideas in the week or two before.', source_url: 'https://www.crosswalk.com/special-coverage/christmas-and-advent/what-is-advent.html', source_title: 'Crosswalk: Advent 2026 dates', outline: ['What is Advent, explained for a 3-year-old?', 'When does Advent start in 2026?', 'How do you light an Advent wreath with little ones?', 'One verse and one activity for each week', 'Advent calendar ideas besides chocolate'], links_to: '/free/ (routine charts)' },
+        review: null, owner_note: null, created_at: ago(40), updated_at: ago(40), decided_at: null
+      },
       { id: 'demo-pin-1', employee_id: 'pinterest', kind: 'pin', title: 'Psalm 56:3 for kids: a verse for scared nights', status: 'in_review', revision: 1, body: { title: 'Psalm 56:3 for kids: a verse for scared nights', description: 'A one-line verse your little one can hold on to at bedtime.', board: 'Bible Verses for Kids', link_path: '/verses/psalm-56-3', image_brief: 'A child holding a parent’s hand by a night light.' }, review: null, created_at: ago(6), updated_at: ago(6), decided_at: null },
       { id: 'demo-pin-2', employee_id: 'pinterest', kind: 'pin', title: 'Free printable Psalm 56:3 verse card', status: 'in_review', revision: 1, body: { title: 'Free printable Psalm 56:3 verse card' }, review: null, created_at: ago(5), updated_at: ago(5), decided_at: null }
     ],
@@ -32,7 +38,8 @@ export function demoData() {
       { id: 'r2', employee_id: 'pinterest', started_at: ago(8), finished_at: ago(3), outcome: 'ok', summary: 'Wrote 2 pins for the Psalm 56:3 page.' },
       { id: 'r3', employee_id: 'reviewer', started_at: ago(1300), finished_at: ago(1299), outcome: 'ok', summary: 'Reviewed 2: both passed to you, with one question about a prayer.' },
       { id: 'r4', employee_id: 'content', started_at: ago(1500), finished_at: ago(1499), outcome: 'ok', summary: 'Wrote the Psalm 56:3 page.' },
-      { id: 'r5', employee_id: 'email', started_at: ago(1500), finished_at: ago(1499), outcome: 'ok', summary: 'Wrote the Sunday 8 Nov email.' }
+      { id: 'r5', employee_id: 'email', started_at: ago(1500), finished_at: ago(1499), outcome: 'ok', summary: 'Wrote the Sunday 8 Nov email.' },
+      { id: 'r6', employee_id: 'blogger', started_at: ago(45), finished_at: ago(40), outcome: 'ok', summary: 'Suggested 3 blog posts: Advent with toddlers, thankful toddlers, screen time.' }
     ]
   };
 }

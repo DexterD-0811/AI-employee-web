@@ -1,6 +1,6 @@
 # Little Faith Bots
 
-The team room for the Little Faith Club AI team. Four AI employees, drawn as
+The team room for the Little Faith Club AI team. Five AI employees, drawn as
 little robots in the Little Faith Club sticker style, work at desks in one 3D
 room. You can see who is on shift, what each one is writing, what is waiting for
 your yes, and how the week is going.
@@ -72,7 +72,8 @@ greeting).
 
 ## The AI team
 
-Four employees work in draft-only mode. Each is a playbook in this repository
+Five employees work here. Four are draft-only; Janna, the Blogger, publishes
+blog posts once you approve them. Each is a playbook in this repository
 plus a Claude scheduled task that wakes it, reads the playbook and works in the
 shared Supabase workspace (project `little-faith-club`).
 
@@ -82,8 +83,9 @@ shared Supabase workspace (project `little-faith-club`).
 | Piper, Pinterest and SEO Marketer | `agents/pinterest-marketer/SKILL.md` | Daily 5:41 | 3 pins per page, up to 10 a run |
 | Ellie, Email Marketer | `agents/email-marketer/SKILL.md` | Thu 13:45 | Sunday, welcome and seasonal emails, up to 3 a run |
 | Ruth, Faith and Brand Reviewer | `agents/brand-reviewer/SKILL.md` | Every 2 hours, 7:45–19:45 | Checks every draft, passes it to you or sends it back |
+| Janna, Blogger | `agents/blogger/SKILL.md` | Hourly, 7:47–21:47 | 3 blog post ideas each morning; writes and publishes the ones you approve |
 
-All four read `agents/brand/BRAND.md` (voice, statement of faith, prices,
+All five read `agents/brand/BRAND.md` (voice, statement of faith, prices,
 privacy) and `agents/shared/WORKSPACE.md` (tables, SQL, draft shapes).
 
 How a draft moves: an employee writes it → Ruth checks Scripture word for word
@@ -91,6 +93,12 @@ against the catalogue, faith, voice, prices, privacy and format → it waits in
 **Your yes** → you approve, send it back with a note, or reject it. A
 sent-back draft goes to the top of its writer's next run. Nothing is published,
 posted or emailed; approved drafts wait until the channels are connected.
+
+Janna's blog ideas are the exception. They go straight to **Your yes** (they're
+ideas, not finished copy, so they skip Ruth). When you approve one, her next
+hourly run writes the full post, checks the website builds, merges it into
+`main` of `DexterD-0811/little-faith-club` and marks the draft published with
+the pull request link. Send one back with a note to change the angle.
 
 The **Pause** button on an employee's card stops their runs
 until you resume them.
