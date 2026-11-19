@@ -209,7 +209,10 @@ export function createTeamRoom(canvas, opts) {
     part(new T.CylinderGeometry(2.4, 2, 4, 12), C.coral, NOOK.x + 26, 2, NOOK.z - 9, room, { navy: .2, white: .5 });
     part(new T.SphereGeometry(4, 14, 10), C.sage, NOOK.x + 26, 7, NOOK.z - 9, room, { navy: .3, white: .8 });
   })();
-  const NOOK_SEATS = [-14.5, -4.8, 4.8, 14.5].map((dx) => new T.Vector3(NOOK.x + dx, 0, NOOK.z - 3.5));
+  // a beanbag on the rug in front of the table: the fifth seat
+  part(new T.SphereGeometry(4.6, 16, 12), C.gold, NOOK.x - 13, 2.2, NOOK.z + 11, room, { navy: .25, white: .6 }).scale.set(1, .55, 1);
+  const NOOK_SEATS = [-14.5, -4.8, 4.8, 14.5].map((dx) => new T.Vector3(NOOK.x + dx, 0, NOOK.z - 3.5))
+    .concat([new T.Vector3(NOOK.x - 13, -2, NOOK.z + 10)]);
 
   // the owner's desk by the door: drafts land in the gold tray
   const YOU = { x: 46, z: 26 };
@@ -380,7 +383,8 @@ export function createTeamRoom(canvas, opts) {
   // members: [{ id, name, title, role, color, light, status, say, screen: { kind, title, sub } }] in desk order
   function setTeam(members) {
     const n = members.length;
-    const xs = members.map((_, i) => (n === 1 ? 0 : -54 + i * (108 / Math.max(1, n - 1))));
+    const span = n > 4 ? 116 : 108; // five desks need a little more room
+    const xs = members.map((_, i) => (n === 1 ? 0 : -span / 2 + i * (span / Math.max(1, n - 1))));
     let seat = 0;
     members.forEach((d, i) => {
       let e = team.get(d.id);

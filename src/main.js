@@ -13,7 +13,8 @@ const PEOPLE = {
   content: { title: 'Content', color: C.plum, light: '#ece4f5', pron: 'Her', shift: 'Shifts Mon to Thu at 8:43 AM' },
   pinterest: { title: 'Pinterest', color: C.coral, light: '#f9d3c7', pron: 'His', shift: 'Shift every morning at 5:41 AM' },
   email: { title: 'Email', color: C.sage, light: '#d3e7d3', pron: 'Her', shift: 'Shift Thursdays at 1:45 PM' },
-  reviewer: { title: 'Reviewer', color: C.blue, light: '#dbe8f1', pron: 'Her', shift: 'Checks every 2 hours, 7:45 AM to 7:45 PM' }
+  reviewer: { title: 'Reviewer', color: C.blue, light: '#dbe8f1', pron: 'Her', shift: 'Checks every 2 hours, 7:45 AM to 7:45 PM' },
+  blogger: { title: 'Blog', color: C.gold, light: '#fcefcf', pron: 'Her', shift: '3 blog ideas by 8 AM; publishes what you approve every hour until 9:47 PM' }
 };
 const SPARE = [[C.gold, '#fcefcf'], ['#2f3780', '#e4e7f5']];
 const STATUS = {
@@ -58,6 +59,7 @@ function start(hq) {
       if (e.status === 'waiting') screen = { kind: 'waiting', title: 'Waiting for your yes', sub: waiting + (waiting === 1 ? ' draft to approve' : ' drafts to approve') };
       else if (e.id === 'reviewer') screen = inReview.length ? { kind: 'checks', title: 'Checking: ' + inReview[0].title, done: 2 } : { kind: 'checks', title: 'Review queue is empty', done: 4 };
       else if (e.id === 'pinterest') screen = { kind: 'pins', title: latest ? latest.title : 'Pins' };
+      else if (e.id === 'blogger') screen = { kind: 'page', title: latest ? latest.title : 'Blog post' };
       else if (e.id === 'email') screen = { kind: 'email', title: latest ? latest.title : 'Email', sub: latest && latest.body && latest.body.subject };
       else screen = { kind: 'page', title: latest ? latest.title : 'Landing page' };
       const status = MODES[e.status] ? e.status : 'idle';
@@ -174,6 +176,14 @@ function start(hq) {
     if (d.kind === 'email') {
       const when = b.send_at ? new Date(b.send_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' US Eastern' : '';
       return '<p class="pv-meta"><b>Subject:</b> ' + esc(b.subject) + '<br><b>Preview text:</b> ' + esc(b.preheader) + (when ? '<br><b>Sends:</b> ' + esc(when) : '') + '</p>' + (b.blocks || []).map((k) => (k.heading ? '<h5>' + esc(k.heading) + '</h5>' : '') + para(k.text) + (k.button ? '<p class="pv-box">[' + esc(k.button) + ']</p>' : '')).join('') + '<p class="pv-meta">' + esc(b.footer) + '</p>';
+    }
+    if (d.kind === 'blog_post') {
+      const link = (u, t) => /^https:\/\//.test(u || '') ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t || u) + '</a>' : esc(t || u || '');
+      return (b.stage === 'published' ? '<p class="pv-box"><b>Published:</b> ' + esc(b.path) + (b.pr_url ? ' · ' + link(b.pr_url, 'pull request') : '') + '</p>' : '') +
+        '<p class="pv-meta"><b>Search question:</b> ' + esc(b.search_question) + '<br><b>Page address:</b> ' + esc(b.path) + '<br><b>Points to:</b> ' + esc(b.links_to) + '</p>' +
+        para(b.description) + '<p class="pv-box"><b>Why now:</b> ' + esc(b.why_now) + (b.source_url ? ' ' + link(b.source_url, b.source_title || 'Source') : '') + '</p>' +
+        (b.outline && b.outline.length ? '<h5>Outline</h5><ol>' + b.outline.map((x) => '<li>' + esc(x) + '</li>').join('') + '</ol>' : '') +
+        (b.stage !== 'published' ? '<p class="muted">Approve and Janna writes the full post (800 to 1,100 words) and merges it to the website within the hour.</p>' : '');
     }
     return '<pre class="pv-raw">' + esc(JSON.stringify(b, null, 2)) + '</pre>';
   }

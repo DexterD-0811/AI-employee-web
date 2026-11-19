@@ -3,7 +3,7 @@
 export const LIVE_COLS = [['doing', 'Being fixed'], ['review', 'With Ruth'], ['you', 'Your yes'], ['done', 'Approved']];
 const COL_OF = { sent_back: 'doing', in_review: 'review', awaiting_approval: 'you', approved: 'done', published: 'done' };
 
-export const KIND_LABEL = { landing_page: 'Landing page', pin: 'Pin', email: 'Email', video_script: 'Video script' };
+export const KIND_LABEL = { landing_page: 'Landing page', pin: 'Pin', email: 'Email', video_script: 'Video script', blog_post: 'Blog post' };
 
 export function ago(iso) {
   if (!iso) return '—';
@@ -48,8 +48,9 @@ export function liveGoals(drafts) {
     { id: 'g-pages', title: 'Landing pages drafted', current: made('landing_page'), target: 6, unit: 'pages', owners: ['content'] },
     { id: 'g-pins', title: 'Pins drafted', current: made('pin'), target: 35, unit: 'pins', owners: ['pinterest'] },
     { id: 'g-emails', title: 'Emails drafted', current: made('email'), target: 3, unit: 'emails', owners: ['email'] },
+    { id: 'g-blog', title: 'Blog posts published', current: week.filter((d) => d.kind === 'blog_post' && d.status === 'published').length, target: 7, unit: 'posts', owners: ['blogger'] },
     { id: 'g-reviewed', title: 'New drafts checked by Ruth', current: reviewed, target: Math.max(1, week.length), unit: 'drafts', owners: ['reviewer'] },
-    { id: 'g-approved', title: 'Drafts you approved', current: approved, target: Math.max(1, approved + waiting), unit: 'drafts', owners: ['content', 'pinterest', 'email'] }
+    { id: 'g-approved', title: 'Drafts you approved', current: approved, target: Math.max(1, approved + waiting), unit: 'drafts', owners: ['content', 'pinterest', 'email', 'blogger'] }
   ];
 }
 

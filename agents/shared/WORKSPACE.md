@@ -1,6 +1,6 @@
 # The shared workspace
 
-All four employees work in one Supabase database, and Little Faith Bots shows it to the
+All five employees work in one Supabase database, and Little Faith Bots shows it to the
 owner. Use the **Supabase connector** (`execute_sql`) on project
 `zyhmbbewqmplceycarfr`. You connect as the database owner, so nothing stops
 you from writing anywhere. The rules below are what keep you safe.
@@ -198,6 +198,27 @@ channel can publish it later. Keep to these keys.
 ```
 
 Every email's footer contains `{{unsubscribe}}`. At most one `offer` block.
+
+### `blog_post` (Janna)
+
+A suggestion goes straight to `awaiting_approval` (it skips Ruth). Once
+published, Janna adds `stage`, `pr_url` and `published_on`.
+
+```json
+{
+  "stage": "suggestion | published",
+  "path": "/blog/advent-with-toddlers/",
+  "search_question": "How do I do Advent with a toddler?",
+  "description": "≤170 characters, with the search phrase",
+  "why_now": "One line on the timing or the trend",
+  "source_url": "https://…",
+  "source_title": "Site: page title",
+  "outline": ["5 or 6 headings, as the questions parents ask"],
+  "links_to": "/free/ (routine charts)",
+  "pr_url": "https://github.com/DexterD-0811/little-faith-club/pull/…",
+  "published_on": "2026-11-20"
+}
+```
 
 ### `video_script` (later, for the Short Video Producer)
 
